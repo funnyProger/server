@@ -6,25 +6,23 @@ import java.util.*;
 
 
 public class Server {
-public static void main(String[] args) throws  Exception{
+public static void main(String[] args) throws  Exception {
     Server server = new Server();
     DatagramSocket socket = new DatagramSocket(5040);
 
     String[] datagramPackets = new String[1];
+    String[] CheckDatagramPackets = new String[1];
+
+
     System.out.println("Запуск сервера :)");
     int a = -1;
+    int b = 0;
     Timer timer = new Timer();
-    server.Timer(datagramPackets, timer, socket, server, a);           //запуск таймер
+    server.Timer(datagramPackets, timer, socket, CheckDatagramPackets);           //запуск таймер
 
 
-    while(true) {
-        server.GetData(socket, a, server, datagramPackets, 0);         //вызов методы получения данных
-    }
+    while (true) {
 
-
-}
-
-    public void GetData(DatagramSocket socket, int a, Server server, String[] datagramPackets, int i) {
         byte[] buf = new byte[1024];
         DatagramPacket packet = new DatagramPacket(buf, buf.length);
 
@@ -32,13 +30,39 @@ public static void main(String[] args) throws  Exception{
         try {
             socket.receive(packet);                                                  //получение данных
             System.out.println("Данные получены :]");
-            a++;
-            server.Receive(datagramPackets, server, a, packet);
+            String string = new String(packet.getData(), 0, packet.getLength());
+            InetAddress _address = packet.getAddress();
+            String address = _address.toString();
+            System.out.println("Запрос клиента: " + string);
+
+
+
+            if (string.equals("ДА")) {
+                for (int i = 0; i < datagramPackets.length; i++) {
+
+                    String[] s = datagramPackets[i].split("/");
+                    if (address.equals(s[1])) {
+                        CheckDatagramPackets[b] = datagramPackets[i];
+                        b++;
+                    }
+                }
+
+
+            } else {
+                a++;
+                server.Receive(datagramPackets, server, a, packet);
+            }
+
+
         } catch (Exception e) {
             System.out.println("Данные не получены :(");
 
         }
+
+
     }
+
+}
     public void Receive(String[] datagramPackets, Server server, int a, DatagramPacket packet) {
 
         System.out.println("Работает метод проверки списка ->");
@@ -111,104 +135,94 @@ public static void main(String[] args) throws  Exception{
 
 
 
-    public void Timer(String[] datagramPackets, Timer timer, DatagramSocket socket, Server server, int a) {
+    public void Timer(String[] datagramPackets, Timer timer, DatagramSocket socket, String[] CheckDatagramPackets) throws InterruptedException {
     System.out.println("Работает метод таймера ->");
+    Thread.sleep(2000);
 
         try {
             timer.scheduleAtFixedRate(new TimerTask() {
 
                 @Override
                 public void run() {
-                    new Thread(new Runnable() {
 
+                    System.out.println("Работает поток таймера");
+                    if (datagramPackets[0] != null) {
+                        System.out.println("Запуск алгоритма рассылки.");
 
-                        @Override
-                        public void run() {
+                        for (int i = 0; i < datagramPackets.length; i++) {//перебираем клиентов
+                            String[] s = datagramPackets[i].split("/");
 
-                            System.out.println("Работает поток таймера");
-                            if (datagramPackets[0] != null) {
-                                System.out.println("Запуск алгоритма рассылки.");
+                            try {
+                                String str = "Живой";
+                                byte[] mess = str.getBytes();
+                                InetAddress checkAddress = InetAddress.getByName(s[1]);
+                                int checkPort = Integer.parseInt(s[2]);
+                                DatagramPacket checkPacket = new DatagramPacket(mess, mess.length, checkAddress, checkPort);
+                                socket.send(checkPacket);
 
-                                for (int i = 0; i < datagramPackets.length; i++) {//перебираем клиентов
-                                    if (datagramPackets[i] != null) {
-                                        String sendMessage = ""; //строка содержащая все данные вместе взятые
-                                        String slash = "/";
-                                        String[] s = datagramPackets[i].split("/");
-
-                                        try {
-                                            String str = "Живой";
-                                            byte[] mess = str.getBytes();
-                                            InetAddress checkAddress = InetAddress.getByName(s[1]);
-                                            int checkPort = Integer.parseInt(s[2]);
-                                            DatagramPacket checkPacket = new DatagramPacket(mess, mess.length, checkAddress, checkPort);
-                                            socket.send(checkPacket);
-
-                                            byte[] buf = new byte[1024];
-                                            DatagramPacket packet = new DatagramPacket(buf, buf.length);
-                                            socket.receive(packet);
-                                            String replyString = new String(packet.getData(), 0 , packet.getLength());
-
-                                            if(replyString.equals("ДА")) {
-
-                                                for (int j = 0; j < s.length; j++) { //обрабатываем запрос каждого клиента
-                                                    if (!s[j].equals("")) { //проверка на пустую строку в массиве строк, содержащем запросы клиента
-                                                        switch (s[j]) {
-                                                            case "AGE" -> {
-                                                                Random random = new Random();
-                                                                int age = random.nextInt(100);
-                                                                String message = Integer.toString(age);
-                                                                sendMessage = sendMessage + message + slash;
-                                                            }
-                                                            case "DATE" -> {
-                                                                Date dateNow = new Date();
-                                                                Calendar calendar = Calendar.getInstance();
-                                                                calendar.setTime(dateNow);
-                                                                DateFormat dateFormat = DateFormat.getDateInstance(DateFormat.SHORT);
-                                                                sendMessage = sendMessage + dateFormat.format(calendar.getTime()) + slash;
-                                                            }
-                                                            case "TIME" -> {
-                                                                Date date = new Date();
-                                                                String strDate = Integer.toString((int) date.getTime());
-                                                                sendMessage = sendMessage + strDate + slash;
-                                                            }
-
-                                                        }
-                                                    }
-                                                }
-
-                                                byte[] bytes = sendMessage.getBytes();
-                                                InetAddress address;
-                                                try {
-                                                    address = InetAddress.getByName(s[1]);
-                                                } catch (UnknownHostException e) {
-                                                    throw new RuntimeException(e);
-                                                }
-                                                int port = Integer.parseInt(s[2]);
-                                                DatagramPacket datagramPacket = new DatagramPacket(bytes, bytes.length, address, port);
-                                                try {
-                                                    socket.send(datagramPacket);
-                                                } catch (IOException e) {
-                                                    throw new RuntimeException(e);
-                                                }
-                                                System.out.println("Рассылка для элемента списка " + i + " выполнена успешно: " + sendMessage);
-                                            }
-
-                                        } catch (Exception e) {
-                                            System.out.println("Не удалось выполнить отправку данных клиенту :(");
-                                        }
-                                    }
-
-                                }
-
+                            } catch (Exception e) {
+                                System.out.println("Не удалось выполнить отправку данных клиенту :(");
                             }
 
 
                         }
-                    }).start();
+
+                        if (CheckDatagramPackets[0] != null) {
+                            for (int c = 0; c < CheckDatagramPackets.length; c++) {
+                                String sendMessage = ""; //строка, которая будет содержать отправные данные вместе взятые
+                                String slash = "/";
+                                String[] s = CheckDatagramPackets[c].split("/");
+
+                                for (int j = 0; j < s.length; j++) { //обрабатываем запрос каждого клиента
+                                    if (!s[j].equals("")) { //проверка на пустую строку в массиве строк, содержащем запросы клиента
+                                        switch (s[j]) {
+                                            case "AGE" -> {
+                                                Random random = new Random();
+                                                int age = random.nextInt(100);
+                                                String message = Integer.toString(age);
+                                                sendMessage = sendMessage + message + slash;
+                                            }
+                                            case "DATE" -> {
+                                                Date dateNow = new Date();
+                                                Calendar calendar = Calendar.getInstance();
+                                                calendar.setTime(dateNow);
+                                                DateFormat dateFormat = DateFormat.getDateInstance(DateFormat.SHORT);
+                                                sendMessage = sendMessage + dateFormat.format(calendar.getTime()) + slash;
+                                            }
+                                            case "TIME" -> {
+                                                Date date = new Date();
+                                                String strDate = Integer.toString((int) date.getTime());
+                                                sendMessage = sendMessage + strDate + slash;
+                                            }
+
+                                        }
+                                    }
+                                }
+
+
+                                byte[] bytes = sendMessage.getBytes();
+                                InetAddress address;
+                                try {
+                                    address = InetAddress.getByName(s[1]);
+                                } catch (UnknownHostException e) {
+                                    throw new RuntimeException(e);
+                                }
+                                int port = Integer.parseInt(s[2]);
+                                DatagramPacket datagramPacket = new DatagramPacket(bytes, bytes.length, address, port);
+                                try {
+                                    socket.send(datagramPacket);
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
+                                System.out.println("Рассылка для элемента списка " + c + " выполнена успешно: " + sendMessage);
+
+                            }
+                        }
+                    }
 
 
                 }
-            }, 0, 3000);
+            }, 3000, 3000);
 
         } catch (Exception e) {
             System.out.println("Не получилось запустить поток таймера :(");
