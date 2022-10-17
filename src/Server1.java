@@ -1,8 +1,8 @@
+import java.io.File;
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.OperatingSystemMXBean;
+import java.net.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalTime;
@@ -306,7 +306,40 @@ public class Server1 {
                                     LocalTime time = LocalTime.now();
                                     String str = time.toString();
                                     sendMessage = sendMessage + str + slash;
+                                }
+                                case "IP" -> {
+                                    String ip = "";
+                                    try {
+                                        Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+                                        while (interfaces.hasMoreElements()) {
+                                            NetworkInterface iface = interfaces.nextElement();
+                                            if (iface.isLoopback() || !iface.isUp() || iface.isVirtual())
+                                                continue;
 
+
+                                            Enumeration<InetAddress> addresses = iface.getInetAddresses();
+                                            while (addresses.hasMoreElements()) {
+                                                InetAddress addr = addresses.nextElement();
+                                                if (addr instanceof Inet4Address) {
+                                                    ip = addr.getHostAddress();
+                                                }
+                                            }
+                                        }
+                                    } catch (SocketException e) {
+                                        throw new RuntimeException(e);
+                                    }
+
+                                    sendMessage = sendMessage + ip + "/";
+                                }
+                                case "MEMORY" -> {
+                                    String str = "";
+                                    File[] roots = File.listRoots();
+                                    for (int i = 0; i < roots.length; i++) {
+                                        if(i < roots.length - 2) {
+                                            str = roots[i].toString() + "-";
+                                        } else str = roots[i].toString();
+                                    }
+                                    sendMessage = sendMessage + str + "/";
                                 }
 
 
