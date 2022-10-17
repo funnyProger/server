@@ -4,15 +4,18 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class Server1 {
-    Server server = new Server();
 
 
     DatagramSocket socket;
     String[] datagramPackets = new String[1];
-    String[] CheckDatagramPackets = new String[10];
+    String[] CheckDatagramPackets = new String[1];
+
 
     int a = -1;
     int b = 0;
@@ -20,18 +23,17 @@ public class Server1 {
     Timer timer = new Timer();
 
 
-
     Server1(DatagramSocket socket) {
         this.socket = socket;
     }
 
 
-    public void data() throws Exception {
+    public void data() {
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    Timer(datagramPackets, timer, socket, CheckDatagramPackets);           //запуск таймер
+                    Timer(timer, socket);           //запуск таймер
                 } catch (InterruptedException e) {
                     System.out.println("Не удалось запустить таймер :(");
                 }
@@ -50,15 +52,36 @@ public class Server1 {
                         System.out.println("Запрос клиента: " + string);
 
 
-
                         if (string.equals("ДА")) {
                             for (int i = 0; i < datagramPackets.length; i++) {
 
                                 String[] s = datagramPackets[i].split("/");
                                 if (address.equals("/" + s[1])) {
-                                    CheckDatagramPackets[b] = datagramPackets[i];
-                                    System.out.println("Элемент списка для отправления конечных данных с индексом "  + b + ": " + CheckDatagramPackets[b]);
-                                    b++;
+
+
+                                    if (CheckDatagramPackets[0] != null) {
+                                        for (int q = 0; q < CheckDatagramPackets.length; q++) {
+                                            String[] p = CheckDatagramPackets[q].split("/");
+                                            if (address.equals("/" + p[1])) {
+                                                CheckDatagramPackets[q] = datagramPackets[i];
+                                            } else {
+                                                if (b < CheckDatagramPackets.length) {
+                                                    CheckDatagramPackets[b] = datagramPackets[i];
+                                                    System.out.println("Элемент списка для отправления конечных данных с индексом " + b + ": " + CheckDatagramPackets[b]);
+                                                    b++;
+                                                } else {
+                                                    increaseCheckPacketArraySize();
+                                                    CheckDatagramPackets[b] = datagramPackets[i];
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        CheckDatagramPackets[b] = datagramPackets[i];
+                                        System.out.println("Элемент списка для отправления конечных данных с индексом " + b + ": " + CheckDatagramPackets[b]);
+                                        b++;
+                                    }
+
+
                                 }
                             }
 
@@ -92,31 +115,21 @@ public class Server1 {
         Если этот клиент уже обращался к серверу, то элемент списка с таким же ip меняется на новый
          */
 
-
         if (datagramPackets[0] != null) {
             for (int i = 0; i < datagramPackets.length; i++) {
-                String[] s = datagramPackets[i].split("/");
-                if (address.equals("/" + s[1])) {
+                String[] q = datagramPackets[i].split("/");
+                if (address.equals("/" + q[1])) {
 
                     //алгоритм получения строки нужного вида, для помещения ее в список всех, кто делал запрос к серверу (datagramPackets)
                     String tmp = "";
-                    String[] k = str.split("/");
-                    for (int d = 0; d < k.length; d++) {
-                        if (k[d].equals("YES")) {      //если в запросе пользователя найдется индикатор подписки на рассылку (YES), то мы собираем новый элемент списка для рассылки
-                            for (int j = 0; j < k.length; j++) {
-                                if (!k[j].equals("YES")) {
-                                    if (j == k.length - 2) {
-                                        tmp = k[j];
-                                    } else {
-                                        tmp = k[j] + "/";
-                                    }
-                                }
-                            }
-
+                    String[] s = str.split("/");
+                    for (int j = 0; j < s.length; j++) {
+                        if (!s[j].equals("YES")) {
+                            if(!s[j].equals(s[s.length-2])) tmp = s[j] + "/";
+                            else tmp = tmp + s[j];
                         }
                     }
-
-                    datagramPackets[i] = s[1] + "/" + s[2] + tmp;
+                    datagramPackets[i] = q[1] + "/" + q[2] + "/" + tmp;
                 }
             }
 
@@ -125,12 +138,12 @@ public class Server1 {
             System.out.println("IP клиента: " + address);
             System.out.println("Порт клиента: " + port);
             System.out.println("Зарос клиента: " + str);
-            PacketList(str, address, port, datagramPackets, a);
+            PacketList(str, address, port, a);
         }
     }
 
 
-    public void PacketList(String str, String address, String port, String[] datagramPackets, int a) {
+    public void PacketList(String str, String address, String port, int a) {
         /*
         Данный метод добавляет пользователя в список клиентов, которые хоть раз обращались к серверу
         Для добавления в список клиента нужно привести данные к определенному виду, потому что в списке они будут храниться в виде - /ip/port/данные1/данные2/данные3 и т.д..
@@ -139,31 +152,31 @@ public class Server1 {
          */
 
         System.out.println("Работает метод добавления данных в список ->");
+        int z = 0;
         String tmp = "";
         String[] s = str.split("/");
         for (int i = 0; i < s.length; i++) {
             if (s[i].equals("YES")) {        //если в запросе пользователя найдет индикатор подписки на рассылку (YES), то мы собираем новый элемент списка для рассылки
-                for (int j = 0; j < s.length; j++) {
-                    if (!s[j].equals("YES")) {
-                        if (j == s.length - 2) {
-                            tmp = s[j];
-                        } else {
-                            tmp = s[j] + "/";
-                        }
-                    }
-                }
-
+                z++;
             }   //тут потом нужно будет добавить вариант, если клиент не подписался на рассылку
+        }
+        if(z != 0) {
+            for (int j = 0; j < s.length; j++) {
+                if (!s[j].equals("YES")) {
+                    if(!s[j].equals(s[s.length-2])) tmp = s[j] + "/";
+                    else tmp = tmp + s[j];
+                }
+            }
         }
         if (a < datagramPackets.length) {
             datagramPackets[a] = address + "/" + port + "/" + tmp;
             System.out.println("Элемент списка с индексом " + a + ": " + datagramPackets[a]);
         } else {
-            increasePacketArraySize(str, address, port, datagramPackets, a);
+            increasePacketArraySize(str, address, port, a);
         }
     }
 
-    public void increasePacketArraySize(String str, String address, String port, String[] datagramPackets, int a) { //увеличение размера массива, хранящего пакеты клиентов
+    public void increasePacketArraySize(String str, String address, String port, int a) { //увеличение размера массива, хранящего пакеты клиентов
         /*
         Данный метод увеличивает размер общего списка
         Так как действующий клиент не был добавлен в список по причине его переполненности, мы вызываем метод добавления клиента в список еще раз, передавая ему увеличенный список
@@ -175,12 +188,29 @@ public class Server1 {
             array[k] = datagramPackets[k];
         }
         datagramPackets = array;
-        PacketList(str, address, port, datagramPackets, a);
+        PacketList(str, address, port, a);
+    }
+
+
+    public void increaseCheckPacketArraySize() {
+        /*
+        Данный метод увеличивает размер списка для отправки данных
+        Так как действующий клиент не был добавлен в список по причине его переполненности, мы вызываем метод добавления клиента в список еще раз, передавая ему увеличенный список
+         */
+
+        System.out.println("Работает метод увеличения размера списка ->");
+        String[] array = new String[CheckDatagramPackets.length + 10];
+        for(int k = 0; k < CheckDatagramPackets.length; k++) {
+            array[k] = CheckDatagramPackets[k];
+        }
+        CheckDatagramPackets = array;
     }
 
 
 
-    public void Timer(String[] datagramPackets, Timer timer, DatagramSocket socket, String[] CheckDatagramPackets) throws InterruptedException {
+
+
+    public void Timer(Timer timer, DatagramSocket socket) throws InterruptedException {
 
         /*
         Данный метод запуская таймер, в котором каждые 3000 мили секунд (3 сек) срабатывает проверка связи с клиентами из общего списка (datagramPackets)
@@ -196,7 +226,7 @@ public class Server1 {
                 @Override
                 public void run() {
 
-                    System.out.println("Работает поток таймера");
+                    System.out.println("Работает поток таймера!");
                     if (datagramPackets[0] != null) {
                         System.out.println("Запуск алгоритма рассылки.");
 
@@ -216,15 +246,18 @@ public class Server1 {
                             }
                         }
 
-                        System.out.println("Завершился опрос всех пользователей!");
+                        try {
+                            Thread.sleep(2000);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
 
                         sendData(CheckDatagramPackets, socket);
-                        System.out.println("Вызван метод отправки данных активным пользователям");
 
                     }
 
                 }
-            }, 3000, 3000);
+            }, 5000, 5000);
 
         } catch (Exception e) {
             System.out.println("Не получилось запустить поток таймера :(");
@@ -233,7 +266,7 @@ public class Server1 {
     }
 
 
-    public void sendData(String[] CheckDatagramPackets, DatagramSocket socket)  {
+    public void sendData(String[] CheckDatagramPackets, DatagramSocket socket) {
 
         /*
         Данный метод отвечает за отправку конечных данных пользователям из нового списка (CheckDatagramPackets)
@@ -249,7 +282,7 @@ public class Server1 {
                     String slash = "/";
                     String[] s = CheckDatagramPackets[c].split("/");
 
-                    for (int j = 0; j < s.length; j++) { //обрабатываем запрос каждого клиента
+                    for (int j = 0; j < s.length; j++) { //обрабатываем запрос каждого клиента списка
                         if (!s[j].equals("")) { //проверка на пустую строку в массиве строк, содержащем запросы клиента
                             switch (s[j]) {
                                 case "AGE" -> {
@@ -265,15 +298,22 @@ public class Server1 {
                                     DateFormat dateFormat = DateFormat.getDateInstance(DateFormat.SHORT);
                                     sendMessage = sendMessage + dateFormat.format(calendar.getTime()) + slash;
                                 }
-                                case "TIME" -> {
-                                    Date date = new Date();
-                                    String strDate = Integer.toString((int) date.getTime());
-                                    sendMessage = sendMessage + strDate + slash;
+                                case "OS" -> {
+                                    String os = System.getProperty("os.name");
+                                    sendMessage = sendMessage + os + slash;
                                 }
+                                case "TIME" -> {
+                                    LocalTime time = LocalTime.now();
+                                    String str = time.toString();
+                                    sendMessage = sendMessage + str + slash;
+
+                                }
+
 
                             }
                         }
                     }
+
 
 
                     byte[] bytes = sendMessage.getBytes();
